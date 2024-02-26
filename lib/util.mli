@@ -17,5 +17,5 @@ end
 module Monad : functor (I: MONAD_INSTANCE) -> MONAD with type 'a t = 'a I.t
 
 module OptionMonad : MONAD with type 'a t = 'a option
-
 module ReaderMonad : functor (B: sig type t end) -> MONAD with type 'a t = B.t -> 'a
+module ResultMonad : functor (B: sig type t end) -> MONAD with type 'a t = ('a, B.t) result

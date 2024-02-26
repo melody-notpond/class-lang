@@ -56,7 +56,6 @@ let rec eval_expr e : value interper =
   | ELet {bind = _; bound = _; result = _} -> failwith "unimplemented"
   | ELetRec {bind = _; bound = _; and_binds = _; result = _} -> failwith "unimplemented"
   | EMatch (_e, _branches) -> failwith "unimplemented"
-
   | ELam (x, _t, e) ->
     let* env = ask in
     return @@ VLam (x, env, e)
@@ -69,4 +68,11 @@ let rec eval_expr e : value interper =
     end
   | EAnn (e, _t) -> eval_expr e
 
-let interp = 0
+let interp (a: ast list) : (value list, string) result =
+  let condense xs x =
+  match x with
+  | AExpr e ->
+    let* v = eval_expr e in
+    return (v :: xs)
+  | ATypeDef _ -> failwith "unimplemented"
+  in foldM condense [] a []

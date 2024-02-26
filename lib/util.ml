@@ -44,6 +44,21 @@ end
 
 module OptionMonad = Monad(OptionMonadInst)
 
+module ResultMonadInst =
+  functor (B: sig type t end) -> struct
+    type 'a t = ('a, B.t) result
+
+    let (>>=) x f =
+      match x with
+      | Ok v -> f v
+      | Error s -> Error s
+
+    let return x = Ok x
+  end
+
+module ResultMonad =
+  functor (B: sig type t end) -> Monad(ResultMonadInst(B))
+
 module ReaderMonadInst =
   functor (B: sig type t end) -> struct
     type b = B.t
