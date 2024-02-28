@@ -6,32 +6,10 @@ type value =
   | VLam of string * env * expr
 and env = (string * value) list
 
-type 'a interper = env -> ('a, string) result
+open ReaderResult(struct type t = env type e = string end)
+open Monad
+type 'a interper = 'a t
 
-module InterpMonadInstance = struct
-  type 'a t = env -> ('a, string) result
-
-  let (>>=) g f =
-    fun e ->
-      match g e with
-      | Ok v -> f v e
-      | Error s -> Error s
-
-  let return x = fun _ -> Ok x
-end
-
-open Monad(InterpMonadInstance)
-
-let error s : 'a interper =
-  fun _ -> Error s
-
-let ask : env interper = fun e -> Ok e
-let local f m =
-  fun e ->
-  match f e with
-  | Ok e' -> m e'
-  | Error s -> Error s
- 
 let lookup x : value interper =
   let* e = ask in
   match List.assoc_opt x e with

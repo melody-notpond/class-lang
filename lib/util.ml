@@ -42,7 +42,11 @@ module OptionMonadInst = struct
   let return x = Some x
 end
 
-module OptionMonad = Monad(OptionMonadInst)
+module Option = struct
+  module Monad = Monad(OptionMonadInst)
+
+  let error _ : 'a Monad.t = None
+end
 
 module ResultMonadInst =
   functor (B: sig type t end) -> struct
@@ -56,8 +60,12 @@ module ResultMonadInst =
     let return x = Ok x
   end
 
-module ResultMonad =
-  functor (B: sig type t end) -> Monad(ResultMonadInst(B))
+module Result =
+  functor (B: sig type t end) -> struct
+    module Monad = Monad(ResultMonadInst(B))
+
+    let error e : 'a Monad.t = Error e
+  end
 
 module ReaderMonadInst =
   functor (B: sig type t end) -> struct
@@ -68,5 +76,41 @@ module ReaderMonadInst =
     let return x = fun _ -> x
   end
 
-module ReaderMonad =
-  functor (B: sig type t end) -> Monad(ReaderMonadInst(B))
+module Reader =
+  functor (B: sig type t end) -> struct
+    module Monad = Monad(ReaderMonadInst(B))
+
+    let ask : B.t Monad.t = fun e -> e
+
+    let local f m : 'a Monad.t =
+      fun e -> m (f e)
+  end
+
+module ReaderResultMonadInst =
+  functor (B: sig type t type e end) -> struct
+    type 'a t = B.t -> ('a, B.e) result
+
+    let (>>=) f g =
+      fun x ->
+      match f x with
+      | Ok v -> g v x
+      | Error s -> Error s
+
+    let return x = fun _ -> Ok x
+  end
+
+module ReaderResult =
+  functor (B: sig type t type e end) -> struct
+    module Monad = Monad(ReaderResultMonadInst(B))
+
+    let error s : 'a Monad.t =
+      fun _ -> Error s
+
+    let ask : B.t Monad.t = fun e -> Ok e
+
+    let local f m : 'a Monad.t =
+      fun e ->
+      match f e with
+      | Ok e' -> m e'
+      | Error s -> Error s
+  end

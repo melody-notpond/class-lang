@@ -16,6 +16,33 @@ end
 
 module Monad : functor (I: MONAD_INSTANCE) -> MONAD with type 'a t = 'a I.t
 
-module OptionMonad : MONAD with type 'a t = 'a option
-module ReaderMonad : functor (B: sig type t end) -> MONAD with type 'a t = B.t -> 'a
-module ResultMonad : functor (B: sig type t end) -> MONAD with type 'a t = ('a, B.t) result
+module Option : sig
+  module Monad : MONAD with type 'a t = 'a option
+
+  val error : 'a -> 'b Monad.t
+end
+
+
+module Result :
+  functor (B: sig type t end) -> sig
+    module Monad : MONAD with type 'a t = ('a, B.t) result
+
+    val error : B.t -> 'a Monad.t
+  end
+
+module Reader :
+  functor (B: sig type t end) -> sig
+    module Monad : MONAD with type 'a t = B.t -> 'a
+
+    val ask : B.t Monad.t
+    val local : B.t Monad.t -> 'a Monad.t -> 'a Monad.t
+  end
+
+module ReaderResult :
+  functor (B: sig type t type e end) -> sig
+    module Monad : MONAD with type 'a t = B.t -> ('a, B.e) result
+
+    val error : B.e -> 'a Monad.t
+    val ask : B.t Monad.t
+    val local : B.t Monad.t -> 'a Monad.t -> 'a Monad.t
+  end
