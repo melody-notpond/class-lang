@@ -43,7 +43,7 @@ and string_of_env e =
   "{" ^ String.concat "; " s ^ "}"
 and string_of_value v =
   match v with
-  | VUnit -> "tt"
+  | VAdtInst (n, a, _) -> "(" ^ n ^ " " ^ String.concat " " (List.map string_of_value a) ^ ")"
   | VLam (x, env, e) ->
     "(\\" ^ x ^ ". " ^ string_of_expr e ^ ")@" ^ string_of_env env
 

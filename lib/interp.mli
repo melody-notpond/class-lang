@@ -1,5 +1,5 @@
 type value =
-  | VUnit
+  | VAdtInst of string * value list * Ast.ty
   | VLam of string * env * Ast.expr
 and env = (string * value) list
 

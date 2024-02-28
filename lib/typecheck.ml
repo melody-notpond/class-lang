@@ -15,7 +15,6 @@ let lookup x : ty checker =
 
 let add_env x t e : env = (x, t) :: e
 let add_env_list xs e : env = xs @ e
-let _add_env_lists xs ts e : env = List.combine xs ts @ e
 
 let rec unify t t' : unit checker =
   match t, t' with
