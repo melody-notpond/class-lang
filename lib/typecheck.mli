@@ -1,1 +1,1 @@
-val typecheck : Ast.ast list -> (unit, string) result
+val check : Ast.ast list -> (Ast.ty list, string) result

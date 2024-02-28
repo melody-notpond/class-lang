@@ -60,9 +60,11 @@ let rec type_expr e : ty checker =
     return t
   | _ -> failwith "unimplemented"
 
-let typecheck a : (ty list, string) result =
-  let f _ a =
+let check a : (ty list, string) result =
+  let f xs a =
     match a with
-    | AExpr e -> type_expr e >> return []
-    | ATypeDef _ -> return []
+    | AExpr e ->
+      let* e' = type_expr e in
+      return (e' :: xs)
+    | ATypeDef _ -> return xs
   in foldM f [] a []

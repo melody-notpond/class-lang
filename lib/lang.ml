@@ -6,6 +6,24 @@ open Typecheck
 open Util.Result(struct type t = string end)
 open Monad
 
+(*
+type ty =
+  | TyVar of int
+  | TyParam of string
+  | TyName of string
+  | TyApp of ty * ty
+  | TyFunc of ty * ty
+  | TyForall of string list * ty
+*)
+let rec string_of_type t =
+  match t with
+  | TyVar i -> "$" ^ string_of_int i
+  | TyParam a -> a
+  | TyName n -> n
+  | TyApp (f, a) -> "(" ^ string_of_type f ^ " " ^ string_of_type a ^ ")"
+  | TyFunc (a, r) -> "(" ^ string_of_type a ^ " -> " ^ string_of_type r ^ ")"
+  | TyForall (xs, t) -> "(forall " ^ String.concat " " xs ^ ", " ^ string_of_type t ^ ")"
+
 let rec string_of_let_bind _b = ""
 and string_of_expr e =
   match e with
@@ -38,12 +56,22 @@ and string_of_value v =
   | VLam (x, env, e) ->
     "(\\" ^ x ^ ". " ^ string_of_expr e ^ ")@" ^ string_of_env env
 
+let typecheck s : (ty list, string) result =
+  let* a = parse s in
+  check a
+
+let typecheck_string s : (string list, string) result =
+  match typecheck s with
+  | Ok t -> Ok (List.map string_of_type t)
+  | Error e -> Error e
+
 let run s : (value list, string) result =
   let* a = parse s in
-  let* () = typecheck a in
+  let* _ = check a in
   interp a
 
-let run_print s : (string list, string) result =
+let run_string s : (string list, string) result =
   match run s with
   | Ok v -> Ok (List.map string_of_value v)
   | Error e -> Error e
+
