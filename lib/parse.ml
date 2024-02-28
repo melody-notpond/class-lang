@@ -85,6 +85,7 @@ let lex: token parser =
         | _ when String.length acc > 0 ->
           backtrack_char >> return acc
         | _ when String.contains "(),|=\\.:" c -> return @@ String.make 1 c
+        | ';' -> return ";"
         | '-' ->
           let* c = next_char in
           if c = '>' then
@@ -95,6 +96,7 @@ let lex: token parser =
       end
   in let* s = helper "" SInit in return @@
   match s with
+  | ";" -> TSemicolon
   | "(" -> TParenL
   | ")" -> TParenR
   | "," -> TComma
@@ -354,13 +356,15 @@ let parse_type_def: type_def parser =
   return {name; params; variants}
 
 let parse_top: ast parser =
-  begin
+  let* v = begin
     let* v = parse_expr in
     return @@ AExpr v
   end |? begin
     let* v = parse_type_def in
     return @@ ATypeDef v
-  end
+  end in
+  let* _ = optional @@ consume_exact TSemicolon in
+  return v
 
 let parse (s: string) : (ast list, string) result =
   match begin

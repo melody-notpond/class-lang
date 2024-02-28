@@ -19,7 +19,11 @@ let _add_env_lists xs ts e : env = List.combine xs ts @ e
 
 let rec unify t t' : unit checker =
   match t, t' with
-  | TyName "unit", TyName "unit" -> return ()
+  | TyName s, TyName s' ->
+    if s = s' then
+      return ()
+    else
+      error @@ "incompatible types " ^ s ^ " and " ^ s'
   | TyFunc (a, r), TyFunc (a', r') -> unify a a' >> unify r r'
   | _ -> error "incompatible or unimplemented types"
 
