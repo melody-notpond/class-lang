@@ -6,15 +6,6 @@ open Typecheck
 open Util.Result(struct type t = string end)
 open Monad
 
-(*
-type ty =
-  | TyVar of int
-  | TyParam of string
-  | TyName of string
-  | TyApp of ty * ty
-  | TyFunc of ty * ty
-  | TyForall of string list * ty
-*)
 let rec string_of_type t =
   match t with
   | TyVar i -> "$" ^ string_of_int i
@@ -52,7 +43,7 @@ and string_of_env e =
   "{" ^ String.concat "; " s ^ "}"
 and string_of_value v =
   match v with
-  | VUnit -> "()"
+  | VUnit -> "tt"
   | VLam (x, env, e) ->
     "(\\" ^ x ^ ". " ^ string_of_expr e ^ ")@" ^ string_of_env env
 
