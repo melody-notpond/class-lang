@@ -13,18 +13,9 @@ let lookup x : ty checker =
   | Some t -> return (t)
   | None -> error @@ "variable `" ^ x ^ "` does not exist"
 
-let add_env x t e : env =
-  ((x, t) :: e)
-
-(*
-type ty =
-  | TyVar of int
-  | TyParam of string
-  | TyName of string
-  | TyApp of ty * ty
-  | TyFunc of ty * ty
-  | TyForall of string list * ty
-*)
+let add_env x t e : env = (x, t) :: e
+let add_env_list xs e : env = xs @ e
+let _add_env_lists xs ts e : env = List.combine xs ts @ e
 
 let rec unify t t' : unit checker =
   match t, t' with
@@ -60,11 +51,25 @@ let rec type_expr e : ty checker =
     return t
   | _ -> failwith "unimplemented"
 
+(*
+type type_def = TyDef of {
+  name: string;
+  params: string list;
+  variants: (string * ty) list
+}
+*)
+
 let check a : (ty list, string) result =
-  let f xs a =
+  let rec f a =
     match a with
-    | AExpr e ->
+    | [] -> return []
+    | AExpr e :: xs ->
       let* e' = type_expr e in
-      return (e' :: xs)
-    | ATypeDef _ -> return xs
-  in foldM f [] a []
+      let* xs' = f xs in
+      return (e' :: xs')
+    | ATypeDef {name = _; params = _; variants} :: xs ->
+      let* e = ask in
+      local (return @@ add_env_list variants e) begin
+        f xs
+      end
+  in f a []

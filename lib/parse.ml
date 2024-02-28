@@ -2,6 +2,7 @@ open Util
 
 type token =
   | TEof
+  | TSemicolon
   | TParenL
   | TParenR
   | TComma
@@ -350,7 +351,7 @@ let parse_type_def: type_def parser =
     let* t = parse_type in
     return (constr, t)
   end in
-  return @@ TyDef {name; params; variants}
+  return {name; params; variants}
 
 let parse_top: ast parser =
   begin

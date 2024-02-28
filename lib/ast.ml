@@ -24,7 +24,7 @@ type expr =
   | EApp of expr * expr
   | EAnn of expr * ty
 
-type type_def = TyDef of {
+type type_def = {
   name: string;
   params: string list;
   variants: (string * ty) list
