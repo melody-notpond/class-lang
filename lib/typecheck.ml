@@ -1,13 +1,13 @@
 open Ast
 open Util
 
-type env = (string * ty) list
+type env = (string * (ty * bool)) list
 
 open ReaderResult(struct type t = env type e = string end)
 open Monad
 type 'a checker = 'a t
 
-let lookup x : ty checker =
+let lookup x : (ty * bool) checker =
   let* e = ask in
   match List.assoc_opt x e with
   | Some t -> return (t)
@@ -31,7 +31,7 @@ let rec verify_type t : unit checker =
   | TyVar _ -> error "type variable cant be verified"
   | TyParam _ -> error "system omega has no type parameters"
   | TyName n ->
-    let* t = lookup n in begin
+    let* (t, _) = lookup n in begin
       match t with
       | TyName "*" -> return ()
       | _ -> error "dependent types are unimplemented"
@@ -45,13 +45,24 @@ let destruct_type_func t : (ty * ty) checker =
   | TyFunc (a, r) -> return (a, r)
   | _ -> error "expected a function"
 
+let rec type_pat p : ty checker =
+  match p with
+  | PWild -> failwith "unimplemented"
+  | PIdent(c, ps) -> failwith "unimplemented"
+  | POr (l, r) -> failwith "unimplemented"
+
 let rec type_expr e : ty checker =
   match e with
-  | EId x -> lookup x
+  | EId x ->
+    let* (t, _) = lookup x in
+    return t
+  | EMatch (e, branches) ->
+    let* t = type_expr e in
+    return t
   | ELam (x, Some t, e) ->
     let* () = verify_type t in
     let* e' = ask in
-    let* r = local (return @@ add_env x t e') begin
+    let* r = local (return @@ add_env x (t, false) e') begin
       type_expr e
     end in
     return @@ TyFunc (t, r)
@@ -100,11 +111,11 @@ let check a : (ty list, string) result =
       if List.exists (fun _ -> true) params then
         error "system omega has no parametrised types"
       else let* e = ask in
-      let e' = add_env name (TyName "*") e
+      let e' = add_env name (TyName "*", true) e
       in local (return e') begin
         let* () = verify_variants name variants in
-        local (return @@ add_env_list variants e) begin
+        local (return @@ add_env_list (List.map (fun (s, t) -> (s, (t, true))) variants) e) begin
           f xs
         end
       end
-  in f a [("unit", TyName "*"); ("tt", TyName "unit")]
+  in f a [("unit", (TyName "*", false)); ("tt", (TyName "unit", true))]
