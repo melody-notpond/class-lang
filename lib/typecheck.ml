@@ -16,14 +16,18 @@ let lookup x : (ty * bool) checker =
 let add_env x t e : env = (x, t) :: e
 let add_env_list xs e : env = xs @ e
 
-let rec unify t t' : unit checker =
+let rec unify t t' : ty checker =
   match t, t' with
-  | TyName s, TyName s' ->
+  | TyVar _, t | t, TyVar _ -> return t
+  | TyName s as t, TyName s' ->
     if s = s' then
-      return ()
+      return t
     else
       error @@ "incompatible types " ^ s ^ " and " ^ s'
-  | TyFunc (a, r), TyFunc (a', r') -> unify a a' >> unify r r'
+  | TyFunc (a, r), TyFunc (a', r') ->
+    let* a'' = unify a a' in
+    let* r'' = unify r r' in
+    return @@ TyFunc (a'', r'')
   | _ -> error "incompatible or unimplemented types"
 
 let rec verify_type t : unit checker =
@@ -45,11 +49,37 @@ let destruct_type_func t : (ty * ty) checker =
   | TyFunc (a, r) -> return (a, r)
   | _ -> error "expected a function"
 
+let rec get_ret t =
+  match t with
+  | TyFunc (_, r) -> r
+  | _ -> t
+
+let rec unfold_func with_args t : ty list =
+  match t with
+  | TyFunc (a, r) -> a  :: unfold_func with_args r
+  | _ when with_args -> [t]
+  | _ -> []
+
 let rec type_pat p : ty checker =
   match p with
-  | PWild -> failwith "unimplemented"
-  | PIdent(c, ps) -> failwith "unimplemented"
-  | POr (l, r) -> failwith "unimplemented"
+  | PWild -> return @@ TyVar 0
+  | PIdent(c, ps) ->
+    if List.for_all (fun _ -> false) ps then
+      let* e = ask in
+      match List.assoc_opt c e with
+      | Some (t, true) ->
+        let r = get_ret t in
+        let* _ = unify r t in
+        return t
+      | _ -> return @@ TyVar 0
+    else
+      let* (t, p) = lookup c in
+      error ""
+  | POr (l, r) ->
+    let* l' = type_pat l in
+    let* r' = type_pat r in
+    let* t = unify l' r' in
+    return t
 
 let rec type_expr e : ty checker =
   match e with
