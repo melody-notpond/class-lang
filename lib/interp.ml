@@ -34,6 +34,13 @@ let adt_of_value v : (string * value list * ty) interper=
   | VAdtInst (name, args, t) -> return (name, args, t)
   | _ -> error "expected adt"
 
+let (|?) x y : 'a option interper =
+  fun e ->
+  match x e with
+  | Ok (Some _ as v) -> Ok v
+  | Ok None -> y e
+  | Error e -> Error e
+
 let rec eval_expr e : value interper =
   match e with
   | EId x -> lookup x
@@ -55,7 +62,7 @@ let rec eval_expr e : value interper =
           | PIdent (x, []) ->
             let* env = ask in begin
             match List.assoc_opt x env with
-            | Some (VAdtInst (n, [], t)) when n = x ->
+            | Some (VAdtInst (n, [], _)) when n = x ->
               if n = name then
                 return (Some [])
               else
@@ -64,25 +71,31 @@ let rec eval_expr e : value interper =
             end
           | PIdent (cons, ps) ->
             if cons = name then
-              let rec helper ps args =
+              let rec helper ps args : env option interper =
                 match ps, args with
                 | p :: ps, x :: xs ->
-                  let ()
-          | POr (p1, p2) ->
-            return @@
-            let (b, env) = pat_matches p1 v in
-            if b then
-              return (b, env)
+                  let* env = pat_matches p x in
+                  let* env' = helper ps xs in
+                  return @@
+                  let open! Option.Monad in
+                  let* env'' = env in
+                  let* env''' = env' in
+                  return @@ env'' @ env'''
+                | [], [] -> return @@ Some []
+                | _, _ -> return None
+              in helper ps args
             else
-              pat_matches p2 v
+              error "invalid variant"
+          | POr (p1, p2) ->
+            pat_matches p1 v |? pat_matches p2 v
         in
-        let* (matches, env) = pat_matches p v in
-        if matches then
+        let* branch = pat_matches p v in
+        match branch with
+        | Some env ->
           local (return @@ env) begin
             eval_expr e
           end
-        else
-          find_branch xs
+        | None -> find_branch xs
     in find_branch branches
   | ELam (x, _t, e) ->
     let* env = ask in
