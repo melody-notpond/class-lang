@@ -49,14 +49,19 @@ let destruct_type_func t : (ty * ty) checker =
   | TyFunc (a, r) -> return (a, r)
   | _ -> error "expected a function"
 
+let rec get_arg_count t =
+  match t with
+  | TyFunc (_, r) -> 1 + get_arg_count r
+  | _ -> 0
+
 let rec get_ret t =
   match t with
-  | TyFunc (_, r) -> r
+  | TyFunc (_, r) -> get_ret r
   | _ -> t
 
-let rec unfold_func with_args t : ty list =
+let rec _unfold_func with_args t : ty list =
   match t with
-  | TyFunc (a, r) -> a  :: unfold_func with_args r
+  | TyFunc (a, r) -> a  :: _unfold_func with_args r
   | _ when with_args -> [t]
   | _ -> []
 
@@ -74,7 +79,16 @@ let rec type_pat p : ty checker =
       | _ -> return @@ TyVar 0
     else
       let* (t, p) = lookup c in
-      error ""
+      if p then
+        if get_arg_count t = List.length ps then
+          let unify_fields t p =
+            let* t' = type_pat p in
+            unify t t'
+          in foldM unify_fields (TyVar 0) ps
+        else
+          error "pattern argument count should match variant field count"
+      else
+        error "expected pattern"
   | POr (l, r) ->
     let* l' = type_pat l in
     let* r' = type_pat r in
@@ -87,8 +101,14 @@ let rec type_expr e : ty checker =
     let* (t, _) = lookup x in
     return t
   | EMatch (e, branches) ->
-    let* t = type_expr e in
-    return t
+    let* t_val = type_expr e in
+    let check_branches t (p, e) =
+      let* tp = type_pat p in
+      let* _ = unify t_val tp in
+      let* t' = type_expr e in
+      let* t'' = unify t t' in
+      return t''
+    in foldM check_branches (TyVar 0) branches
   | ELam (x, Some t, e) ->
     let* () = verify_type t in
     let* e' = ask in
@@ -101,13 +121,13 @@ let rec type_expr e : ty checker =
     let* f' = type_expr f in
     let* a' = type_expr a in
     let* (a'', r) = destruct_type_func f' in
-    let* () = unify a' a'' in
+    let* _ = unify a' a'' in
     return r
   | EAnn (e, t) ->
     let* () = verify_type t in
     let* t' = type_expr e in
-    let* () = unify t' t in
-    return t
+    let* t'' = unify t' t in
+    return t''
   | _ -> failwith "unimplemented"
 
 let rec verify_variants n vs : unit checker =
