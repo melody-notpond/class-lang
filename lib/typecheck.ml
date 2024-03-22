@@ -65,9 +65,9 @@ let rec _unfold_func with_args t : ty list =
   | _ when with_args -> [t]
   | _ -> []
 
-let rec type_pat p : ty checker =
+let rec type_pat p : (ty * env) checker =
   match p with
-  | PWild -> return @@ TyVar 0
+  | PWild -> return (TyVar 0, [])
   | PIdent(c, ps) ->
     if List.for_all (fun _ -> false) ps then
       let* e = ask in
@@ -75,25 +75,26 @@ let rec type_pat p : ty checker =
       | Some (t, true) ->
         let r = get_ret t in
         let* _ = unify r t in
-        return t
-      | _ -> return @@ TyVar 0
+        return (t, [])
+      | _ -> return (TyVar 0, [(c, (TyVar 0, false))])
     else
       let* (t, p) = lookup c in
       if p then
         if get_arg_count t = List.length ps then
-          let unify_fields t p =
-            let* t' = type_pat p in
-            unify t t'
-          in foldM unify_fields (TyVar 0) ps
+          let unify_fields (t, e) p : (ty * env) checker =
+            let* (t', e') = type_pat p in
+            let* t'' = unify t t' in
+            return (t'', e @ e')
+          in foldM unify_fields (TyVar 0, []) ps
         else
           error "pattern argument count should match variant field count"
       else
         error "expected pattern"
   | POr (l, r) ->
-    let* l' = type_pat l in
-    let* r' = type_pat r in
+    let* (l', e) = type_pat l in
+    let* (r', _e') = type_pat r in
     let* t = unify l' r' in
-    return t
+    return (t, e)
 
 let rec type_expr e : ty checker =
   match e with
@@ -103,11 +104,14 @@ let rec type_expr e : ty checker =
   | EMatch (e, branches) ->
     let* t_val = type_expr e in
     let check_branches t (p, e) =
-      let* tp = type_pat p in
+      let* (tp, env') = type_pat p in
       let* _ = unify t_val tp in
-      let* t' = type_expr e in
-      let* t'' = unify t t' in
-      return t''
+      let* env = ask in
+      local (return @@ add_env_list env' env) begin
+        let* t' = type_expr e in
+        let* t'' = unify t t' in
+        return t''
+      end
     in foldM check_branches (TyVar 0) branches
   | ELam (x, Some t, e) ->
     let* () = verify_type t in
