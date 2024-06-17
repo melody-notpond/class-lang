@@ -17,6 +17,7 @@ let rec string_of_type t =
   | TyForall (xs, t) -> "(forall " ^ String.concat " " xs ^ ", " ^ string_of_type t ^ ")"
 *)
 
+(*
 let rec string_of_let_bind _b = ""
 and string_of_expr e =
   match e with
@@ -39,6 +40,7 @@ and string_of_expr e =
   | ELam (x, _, e) -> "(\\" ^ x ^ ". " ^ string_of_expr e ^ ")"
   | EApp (f, e) -> "(" ^ string_of_expr f ^ " " ^ string_of_expr e ^ ")"
   | EAnn (e, _) -> string_of_expr e
+  *)
 
 (*
 and string_of_env e =
@@ -128,8 +130,7 @@ let rec eval_expr e : value interper =
                 | [], [] -> return @@ Some []
                 | _, _ -> return None
               in helper ps args
-            else
-              error "invalid variant"
+            else return None
           | POr (p1, p2) ->
             pat_matches p1 v |? pat_matches p2 v
         in
